@@ -143,6 +143,24 @@
               "value": 1307
             }
           ]
+        },
+        {
+          "label": "kitchen",
+          "value": 14,
+          "children": [
+            {
+              "label": "kitchen-complete-v0",
+              "value": 1401
+            },
+            {
+              "label": "kitchen-partial-v0",
+              "value": 1402
+            },
+            {
+              "label": "kitchen-mixed-v0",
+              "value": 1403
+            }
+          ]
         }
       ]
     },
@@ -732,28 +750,28 @@
     }
   ],
   "query_num": {
-    "type": "integer",
-    "default": 5,
-    "minimum": 1,
-    "maximum": 20
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 500
   },
   "query_length": {
-    "type": "integer",
-    "default": 100,
-    "minimum": 1,
-    "maximum": 500
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 999
   },
   "video_width": {
-    "type": "integer",
-    "default": 300,
-    "minimum": 84,
-    "maximum": 300
+      "type": "integer",
+      "default": 200,
+      "minimum": 84,
+      "maximum": 1000
   },
   "video_height": {
-    "type": "integer",
-    "default": 300,
-    "minimum": 84,
-    "maximum": 300
+      "type": "integer",
+      "default": 200,
+      "minimum": 84,
+      "maximum": 1000
   },
   "fps": {
     "type": "integer",

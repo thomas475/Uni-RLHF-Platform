@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 import shortuuid
 import json
-from uni_rlhf.models import db, User, Project, Query,UserProject
+from uni_rlhf.models import db, User, Project, Query, UserProject, QueryAnnotator
 from uni_rlhf.config import app, db, celery, BASE_URL, UPLOAD_DATASETS_URL
 from uni_rlhf.utils import to_dict, allowed_file
 from flask import jsonify
@@ -41,16 +41,25 @@ def projects(username):
     current_projects_list = []
 
     for project in projects:
+        associated_usernames = [u.username for u in User.query.join(UserProject, User.user_id == UserProject.user_id).filter(UserProject.project_id == project.project_id)]
+        skip_num = db.session.query(db.func.sum(Query.skip_num)).filter(Query.project_id == project.project_id).scalar() or 0
+
+        project_dict = to_dict(project)
+        project_dict.update({"associated_usernames": associated_usernames, "skip_num": skip_num})
+
         if project.visibility:
-            associated_usernames = [u.username for u in User.query.join(UserProject, User.user_id == UserProject.user_id).filter(UserProject.project_id == project.project_id)]
-            skip_num = db.session.query(db.func.sum(Query.skip_num)).filter(Query.project_id == project.project_id).scalar() or 0
-
-            project_dict = to_dict(project)
-            project_dict.update({"associated_usernames": associated_usernames, "skip_num": skip_num})
-
             projects_list.append(project_dict)
         if any(up.project_id == project.project_id for up in userprojects):
             current_projects_list.append(project_dict)
+
+        # if project.visibility:
+        #     associated_usernames = [u.username for u in User.query.join(UserProject, User.user_id == UserProject.user_id).filter(UserProject.project_id == project.project_id)]
+        #     skip_num = db.session.query(db.func.sum(Query.skip_num)).filter(Query.project_id == project.project_id).scalar() or 0
+        #     project_dict = to_dict(project)
+        #     project_dict.update({"associated_usernames": associated_usernames, "skip_num": skip_num})
+        #     projects_list.append(project_dict)
+        # if any(up.project_id == project.project_id for up in userprojects):
+        #     current_projects_list.append(project_dict)
 
     return jsonify({'projects': projects_list, 'currentprojects': current_projects_list})
 
@@ -94,6 +103,10 @@ def create_new_project(username):
     status = 'creation'
     annotation_num = 0  
     is_deleted = 0  # default
+
+    # f = open("request.txt", "w")
+    # f.write(data)
+    # f.close()
 
     user = User.query.filter_by(username=username).first()
     
@@ -295,7 +308,9 @@ def delete_project(project_id, username):
         return jsonify({'username': username, 'message': 'No project found'}), 404
 
     UserProject.query.filter_by(project_id=project_id).delete()
-    QueryAnnotator.query.filter_by(project_id=project_id).delete()
+    # QueryAnnotator.query.filter_by(project_id=project_id).delete()
+    query_ids = [qid for qid, in Query.query.with_entities(Query.query_id).filter_by(project_id=project_id).all()]
+    QueryAnnotator.query.filter(QueryAnnotator.query_id.in_(query_ids)).delete(synchronize_session=False)
     Query.query.filter_by(project_id=project_id).delete()
 
     db.session.delete(project)

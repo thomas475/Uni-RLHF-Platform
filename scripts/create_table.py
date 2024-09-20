@@ -1,11 +1,11 @@
 import pymysql
 
 cfg = {
-    'host': 'your_host',
+    'host': 'localhost',
     'port': 3306,
-    'username': 'your_username',
-    'password': 'your_password',
-    'database_name': 'your_database_name'
+    'username': 'root',
+    'password': 'password',
+    'database_name': 'uni_rlhf'
 }
 
 try:

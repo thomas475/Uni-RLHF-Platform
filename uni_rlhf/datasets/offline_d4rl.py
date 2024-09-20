@@ -52,6 +52,13 @@ class Dataset(BaseOfflineDataset):
 		self.height = video_height
 		self.save_dir = save_dir
 
+		# adjust window size to be 4:3 if necessary
+		if self.task in ['kitchen']:
+			if self.height * 4 / 3 > self.width:
+				self.height = int(self.width * 3 / 4)
+			else:
+				self.width = int(self.height * 4 / 3)
+
 		if not os.path.exists(os.path.join(self.save_dir, self.project_id)):
 			os.makedirs(os.path.join(self.save_dir, self.project_id))
 
@@ -80,7 +87,7 @@ class Dataset(BaseOfflineDataset):
 			self.width, self.height = video_size["large"]
 		
 	def load_offline_dataset(self):
-		assert self.task in ['mujoco', 'adroit', 'antmaze']
+		assert self.task in ['mujoco', 'adroit', 'antmaze', 'kitchen']
 		self.gym_env = gym.make(self.environment_name)
 		if self.task == 'mujoco':
 			self.datasets = qlearning_mujoco_dataset(self.gym_env)
@@ -88,6 +95,8 @@ class Dataset(BaseOfflineDataset):
 			self.datasets = qlearning_adroit_dataset(self.gym_env)
 		elif self.task == 'antmaze':
 			self.datasets = qlearning_ant_dataset(self.gym_env)
+		elif self.task == 'kitchen':
+			self.datasets = qlearning_kitchen_dataset(self.gym_env)
 		else:
 			raise ValueError(f"{self.task} undefined")
 
@@ -194,8 +203,141 @@ class Dataset(BaseOfflineDataset):
 
 	def visualize_query(self, video_info):
 		# mujoco/adroit/antmaze
-		assert self.task in ["mujoco", "adroit", "antmaze"]
+		assert self.task in ["mujoco", "adroit", "antmaze", "kitchen"]
+
+		# # parallelization
+		# def _visualize_query(seg_idx, gym_env, spec):
+		# 	if self.feedback_type in ['comparative', 'attribute']:			
+		# 		start_1, start_2, end_1, end_2, query_id = (
+		# 			video_info["start_indices_1"][seg_idx],
+		# 			video_info["start_indices_2"][seg_idx],
+		# 			video_info["end_indices_1"][seg_idx],
+		# 			video_info["end_indices_2"][seg_idx],
+		# 			video_info["query_id"][seg_idx],
+		# 		)
+		# 		start_indices = range(start_1, end_1)
+		# 		start_indices_2 = range(start_2, end_2)
+		# 	elif self.feedback_type in ['evaluative', 'visual', 'keypoint']:
+		# 		start, end, query_id = (
+		# 			video_info["start_indices"][seg_idx],
+		# 			video_info["end_indices"][seg_idx],
+		# 			video_info["query_id"][seg_idx],
+		# 		)
+		# 		start_indices = range(start, end)
+		# 	else:
+		# 		raise ValueError("The dataset does not support this feedback type.")
+
+		# 	# camera
+		# 	if self.task == "mujoco":
+		# 		camera_name = "track"
+		# 	elif self.task == "antmaze":
+		# 		if "medium" in spec.id:
+		# 			dist_per_pixel = 15
+		# 			start_x = 95
+		# 			start_y = 95
+		# 			camera_name = "birdview"
+		# 		else:
+		# 			dist_per_pixel = 11
+		# 			start_x = 80
+		# 			start_y = 110
+		# 			camera_name = "birdview_large"
+		# 	elif self.task == "adroit":
+		# 		camera_name = "fixed"
+		# 	elif self.task == "kitchen":
+		# 		camera_name = "track"
+			
+		# 	frames = []
+		# 	gym_env.reset()
+		# 	for t in trange(self.query_length, leave=False):
+
+		# 		qpos, qvel = self.get_qpos_and_q_vel(start_indices, t)
+		# 		gym_env.set_state(qpos, qvel)
+				
+		# 		if self.task == "antmaze":
+		# 			if "diverse" in spec.id:
+		# 				goal_x, goal_y = map(lambda x: round(x), self.datasets["goals"][start_indices[t]])
+		# 			else:
+		# 				goal_x, goal_y = map(lambda x: round(x), gym_env.target_goal)
+		# 			curr_frame = gym_env.physics.render(width=self.width, height=self.height, mode="offscreen",
+		# 												camera_name=camera_name)
+		# 			curr_frame[
+		# 			start_y + int(goal_y * dist_per_pixel): start_y + int(goal_y * dist_per_pixel) + 10,
+		# 			start_x + int(goal_x * dist_per_pixel): start_x + int(goal_x * dist_per_pixel) + 10,
+		# 			] = np.array((255, 0, 0)).astype(np.uint8)
+					
+		# 			for i in range(1):
+		# 				frames.append(curr_frame)
+		# 		elif self.task == "mujoco" or self.task == "adroit":
+		# 			curr_frame = gym_env.sim.render(width=self.width, height=self.height, mode="offscreen", camera_name=camera_name)
+		# 			frames.append(np.flipud(curr_frame))
+		# 		elif self.task == "kitchen":
+		# 			# curr_frame = gym_env.render(width=self.width, height=self.height, mode="rgb_array", camera_name=camera_name)
+		# 			curr_frame = gym_env.env.render(mode="rgb_array", height=self.height, width=self.width)
+		# 			frames.append(curr_frame)
+		# 			# frames.append(np.flipud(curr_frame))
+		# 		else:
+		# 			raise ValueError(f"{self.task} undefined")
+
+		# 	if self.feedback_type in ['comparative', 'attribute']:	
+		# 		frames_2 = []
+		# 		gym_env.reset()
+		# 		for t in trange(self.query_length, leave=False):
+
+		# 			qpos, qvel = self.get_qpos_and_q_vel(start_indices_2, t)
+		# 			gym_env.set_state(qpos, qvel)
+
+		# 			if self.task == "antmaze":
+		# 				if "diverse" in spec.id:
+		# 					goal_x, goal_y = map(lambda x: round(x), self.datasets["goals"][start_indices_2[t]])
+		# 				else:
+		# 					goal_x, goal_y = map(lambda x: round(x), gym_env.target_goal)
+						
+		# 				curr_frame = gym_env.physics.render(width=self.width, height=self.height, mode="offscreen",
+		# 													camera_name=camera_name)
+		# 				curr_frame[
+		# 				start_y + int(goal_y * dist_per_pixel): start_y + int(goal_y * dist_per_pixel) + 10,
+		# 				start_x + int(goal_x * dist_per_pixel): start_x + int(goal_x * dist_per_pixel) + 10,
+		# 				] = np.array([255, 0, 0]).astype(np.uint8)
+						
+		# 				for i in range(1):
+		# 					frames_2.append(curr_frame)
+		# 			elif self.task == "mujoco" or self.task == "adroit":
+		# 				curr_frame = gym_env.sim.render(width=self.width, height=self.height, mode="offscreen", camera_name=camera_name)
+		# 				frames_2.append(np.flipud(curr_frame))
+		# 			elif self.task == "kitchen":
+		# 				# curr_frame = gym_env.render(width=self.width, height=self.height, mode="rgb_array", camera_name=camera_name)
+		# 				curr_frame = gym_env.render(mode="rgb_array", height=self.height, width=self.width)
+		# 				# frames_2.append(np.flipud(curr_frame))
+		# 				frames_2.append(curr_frame)
+		# 			else:
+		# 				raise ValueError(f"{domain} undefined")
+			
+		# 	if self.feedback_type in ['comparative', 'attribute']:	
+		# 		video = np.concatenate((np.array(frames), np.array(frames_2)), axis=2)
+		# 	else:
+		# 		video = np.array(frames)
+	
+		# 	writer = imageio.get_writer(os.path.join(self.save_dir, self.project_id, f"{spec.id}_{query_id}.mp4"), fps=self.fps)
+		# 	for frame in tqdm(video, leave=False):
+		# 		writer.append_data(frame)
+		# 	writer.close()
+		# 	video_url = os.path.join(self.save_dir, self.project_id, f"{spec.id}_{query_id}.mp4")
+
+		# 	if self.feedback_type in ['visual', 'keypoint']:
+		# 		dataset_utils.video_to_frames(video_url, os.path.join(self.save_dir, self.project_id, f"{spec.id}_{query_id}_img"))
+
+		# 	return video_url	
 		
+		# from joblib import Parallel, delayed
+		# import copy
+		# video_url_list = Parallel(n_jobs=-1)(
+		# 	delayed(_visualize_query)(
+		# 		seg_idx, 
+		# 		copy.deepcopy(self.gym_env), 
+		# 		spec=self.gym_env.spec
+		# 	) for seg_idx in trange(self.query_num)
+		# )
+
 		video_url_list = []
 		for seg_idx in trange(self.query_num):
 			if self.feedback_type in ['comparative', 'attribute']:			
@@ -234,11 +376,15 @@ class Dataset(BaseOfflineDataset):
 					camera_name = "birdview_large"
 			elif self.task == "adroit":
 				camera_name = "fixed"
+			elif self.task == "kitchen":
+				camera_name = "track"
 			
 			frames = []
 			self.gym_env.reset()
 			for t in trange(self.query_length, leave=False):
-				self.gym_env.set_state(self.datasets["qposes"][start_indices[t]], self.datasets["qvels"][start_indices[t]])
+
+				qpos, qvel = self.get_qpos_and_q_vel(start_indices, t)
+				self.gym_env.set_state(qpos, qvel)
 				
 				if self.task == "antmaze":
 					if "diverse" in self.gym_env.spec.id:
@@ -257,6 +403,11 @@ class Dataset(BaseOfflineDataset):
 				elif self.task == "mujoco" or self.task == "adroit":
 					curr_frame = self.gym_env.sim.render(width=self.width, height=self.height, mode="offscreen", camera_name=camera_name)
 					frames.append(np.flipud(curr_frame))
+				elif self.task == "kitchen":
+					# curr_frame = self.gym_env.render(width=self.width, height=self.height, mode="rgb_array", camera_name=camera_name)
+					curr_frame = self.gym_env.env.render(mode="rgb_array", height=self.height, width=self.width)
+					frames.append(curr_frame)
+					# frames.append(np.flipud(curr_frame))
 				else:
 					raise ValueError(f"{self.task} undefined")
 
@@ -264,10 +415,10 @@ class Dataset(BaseOfflineDataset):
 				frames_2 = []
 				self.gym_env.reset()
 				for t in trange(self.query_length, leave=False):
-					self.gym_env.set_state(
-						self.datasets["qposes"][start_indices_2[t]],
-						self.datasets["qvels"][start_indices_2[t]],
-					)
+
+					qpos, qvel = self.get_qpos_and_q_vel(start_indices_2, t)
+					self.gym_env.set_state(qpos, qvel)
+
 					if self.task == "antmaze":
 						if "diverse" in self.gym_env.spec.id:
 							goal_x, goal_y = map(lambda x: round(x), self.datasets["goals"][start_indices_2[t]])
@@ -283,9 +434,14 @@ class Dataset(BaseOfflineDataset):
 						
 						for i in range(1):
 							frames_2.append(curr_frame)
-					elif self.task == "mujoco" or "adroit":
+					elif self.task == "mujoco" or self.task == "adroit":
 						curr_frame = self.gym_env.sim.render(width=self.width, height=self.height, mode="offscreen", camera_name=camera_name)
 						frames_2.append(np.flipud(curr_frame))
+					elif self.task == "kitchen":
+						# curr_frame = self.gym_env.render(width=self.width, height=self.height, mode="rgb_array", camera_name=camera_name)
+						curr_frame = self.gym_env.render(mode="rgb_array", height=self.height, width=self.width)
+						# frames_2.append(np.flipud(curr_frame))
+						frames_2.append(curr_frame)
 					else:
 						raise ValueError(f"{domain} undefined")
 			
@@ -305,6 +461,19 @@ class Dataset(BaseOfflineDataset):
 				dataset_utils.video_to_frames(video_url, os.path.join(self.save_dir, self.project_id, f"{self.gym_env.spec.id}_{query_id}_img"))
 	
 		return video_url_list
+
+	def get_qpos_and_q_vel(self, start_indices, t):
+		if "qposes" in self.datasets:
+			qpos = self.datasets["qposes"][start_indices[t]]
+		else:
+			# qpos = self.gym_env.sim.data.qpos
+			qpos = None
+		if "qvels" in self.datasets:
+			qvel = self.datasets["qvels"][start_indices[t]]
+		else:
+			# qvel = self.gym_env.sim.data.qvel
+			qvel = None
+		return qpos, qvel
 
 	def generate_video_resources(self):
 		# 1: load offline dataset
@@ -609,6 +778,116 @@ def qlearning_adroit_dataset(env, dataset=None, terminate_on_end=False, **kwargs
 		"qposes": np.array(qpos_),
 		"qvels": np.array(qvel_),
 	}
+
+
+def qlearning_kitchen_dataset(env, dataset=None, terminate_on_end=False, **kwargs):
+	"""
+	Returns datasets formatted for use by standard Q-learning algorithms,
+	with observations, actions, next_observations, rewards, and a terminal
+	flag.
+	Args:
+		env: An OfflineEnv object.
+		dataset: An optional dataset to pass in for processing. If None,
+			the dataset will default to env.get_dataset()
+		terminate_on_end (bool): Set done=True on the last timestep
+			in a trajectory. Default is False, and will discard the
+			last timestep in each trajectory.
+		**kwargs: Arguments to pass to env.get_dataset().
+	Returns:
+		A dictionary containing keys:
+			observations: An N x dim_obs array of observations.
+			actions: An N x dim_action array of actions.
+			next_observations: An N x dim_obs array of next observations.
+			rewards: An N-dim float array of rewards.
+			terminals: An N-dim boolean array of "done" or episode termination flags.
+	"""
+	if dataset is None:
+		dataset = env.get_dataset(**kwargs)
+
+	N = dataset["rewards"].shape[0]
+	obs_ = []
+	next_obs_ = []
+	action_ = []
+	reward_ = []
+	done_ = []
+
+	# xy_ = []
+	done_bef_ = []
+	qpos_ = []
+	# qvel_ = []
+
+	# The newer version of the dataset adds an explicit
+	# timeouts field. Keep old method for backwards compatability.
+	use_timeouts = False
+	if "timeouts" in dataset:
+		use_timeouts = True
+
+	episode_step = 0
+	for i in range(N - 1):
+		obs = dataset["observations"][i].astype(np.float32)
+		new_obs = dataset["observations"][i + 1].astype(np.float32)
+		action = dataset["actions"][i].astype(np.float32)
+		reward = dataset["rewards"][i].astype(np.float32)
+		done_bool = bool(dataset["terminals"][i]) or episode_step == env._max_episode_steps - 1
+
+		# xy = dataset["infos/qpos"][i][:2].astype(np.float32)
+		# xy = dataset["observations"][i][:2].astype(np.float32)
+		xy = []
+
+		# qpos = dataset["infos/qpos"][i]
+		# qvel = dataset["infos/qvel"][i]
+		qpos = obs[:env.sim.data.qpos.size]
+		# qvel = obs[env.sim.data.qpos.size:env.sim.data.qpos.size+env.sim.data.qvel.size]
+
+		# print('obs', obs)
+		# print('new_obs', new_obs)
+		# print('obs[i+1]', dataset["observations"][i+1].astype(np.float32))
+		# print('xy', xy)
+		# print('qpos', qpos)
+		# print('qvel', qvel)
+		# exit(1)
+
+		if use_timeouts:
+			final_timestep = dataset["timeouts"][i]
+			next_final_timestep = dataset["timeouts"][i + 1]
+		else:
+			final_timestep = episode_step == env._max_episode_steps - 1
+			next_final_timestep = episode_step == env._max_episode_steps - 2
+
+		done_bef = bool(next_final_timestep)
+
+		if (not terminate_on_end) and final_timestep:
+			# Skip this transition and don't apply terminals on the last step of an episode
+			episode_step = 0
+			continue
+		if done_bool or final_timestep:
+			episode_step = 0
+
+		obs_.append(obs)
+		next_obs_.append(new_obs)
+		action_.append(action)
+		reward_.append(reward)
+		done_.append(done_bool)
+		# xy_.append(xy)
+		done_bef_.append(done_bef)
+
+		qpos_.append(qpos)
+		# qvel_.append(qvel)
+		episode_step += 1
+
+	output = {
+		"observations": np.array(obs_),
+		"actions": np.array(action_),
+		"next_observations": np.array(next_obs_),
+		"rewards": np.array(reward_),
+		"terminals": np.array(done_),
+		# "xy_": np.array(xy_),
+		"dones_bef_": np.array(done_bef_),
+		"qposes": np.array(qpos_),
+		# "qvels": np.array(qvel_)
+	}
+
+	return output
 
 
 if __name__ == '__main__':

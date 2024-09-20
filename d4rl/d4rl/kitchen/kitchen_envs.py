@@ -3,6 +3,7 @@ import os
 import numpy as np
 from d4rl.kitchen.adept_envs.utils.configurable import configurable
 from d4rl.kitchen.adept_envs.franka.kitchen_multitask_v0 import KitchenTaskRelaxV1
+from d4rl.kitchen.adept_envs.franka.kitchen_multitask_v0 import DEFAULT_RENDER_WIDTH, DEFAULT_RENDER_HEIGHT
 
 from d4rl.offline_env import OfflineEnv
 
@@ -86,9 +87,14 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
             done = not self.tasks_to_complete
         return obs, reward, done, env_info
 
-    def render(self, mode='human'):
-        # Disable rendering to speed up environment evaluation.
-        return []
+    def render(self,
+               mode='human',
+               width=DEFAULT_RENDER_WIDTH,
+               height=DEFAULT_RENDER_HEIGHT,
+               camera_id=-1):
+        # # Disable rendering to speed up environment evaluation.
+        return super(KitchenBase, self).render(mode=mode, width=width, height=height, camera_id=camera_id)
+        # return super(KitchenTaskRelaxV1, self).render(mode=mode, width=width, height=height, camera_id=camera_id)
 
 
 class KitchenMicrowaveKettleLightSliderV0(KitchenBase):

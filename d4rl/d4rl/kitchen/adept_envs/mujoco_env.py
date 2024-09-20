@@ -131,13 +131,28 @@ class MujocoEnv(gym.Env):
         ob = self.reset_model()
         return ob
 
-    def set_state(self, qpos, qvel):
-        assert qpos.shape == (self.model.nq,) and qvel.shape == (self.model.nv,)
+    def set_state(self, qpos=None, qvel=None):
+        assert qpos is None or qpos.shape == (self.model.nq,)
+        assert qvel is None or qvel.shape == (self.model.nv,)
+
         state = self.sim.get_state()
-        for i in range(self.model.nq):
-            state.qpos[i] = qpos[i]
-        for i in range(self.model.nv):
-            state.qvel[i] = qvel[i]
+
+        if qpos is not None:
+            if hasattr(state, 'qpos'):
+                for i in range(self.model.nq):
+                    state.qpos[i] = qpos[i]
+            else:
+                for i in range(self.model.nq):
+                    state[i] = qpos[i]
+
+        if qvel is not None:
+            if hasattr(state, 'qvel'):
+                for i in range(self.model.nv):
+                    state.qvel[i] = qvel[i]
+            else:
+                for i in range(self.model.nv):
+                    state[len(qpos) + i] = qvel[i]
+
         self.sim.set_state(state)
         self.sim.forward()
 

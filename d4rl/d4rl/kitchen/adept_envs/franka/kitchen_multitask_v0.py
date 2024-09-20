@@ -22,6 +22,9 @@ from d4rl.kitchen.adept_envs.utils.configurable import configurable
 from gym import spaces
 from dm_control.mujoco import engine
 
+DEFAULT_RENDER_WIDTH = 2560
+DEFAULT_RENDER_HEIGHT = 1920
+
 @configurable(pickleable=True)
 class KitchenV0(robot_env.RobotEnv):
 
@@ -110,7 +113,7 @@ class KitchenV0(robot_env.RobotEnv):
             'obs_dict': self.obs_dict,
             'rewards': reward_dict,
             'score': score,
-            'images': np.asarray(self.render(mode='rgb_array'))
+            # 'images': np.asarray(self.render(mode='rgb_array'))
         }
         # self.render()
         return obs, reward_dict['r_total'], done, env_info
@@ -188,9 +191,14 @@ class KitchenTaskRelaxV1(KitchenV0):
         score = 0.
         return reward_dict, score
 
-    def render(self, mode='human'):
-        if mode =='rgb_array':
-            camera = engine.MovableCamera(self.sim, 1920, 2560)
+    def render(self,
+               mode='human',
+               width=DEFAULT_RENDER_WIDTH,
+               height=DEFAULT_RENDER_HEIGHT,
+               camera_id=-1):
+        if mode == 'rgb_array':
+            # camera = engine.MovableCamera(self.sim, height=1920, width=2560)
+            camera = engine.MovableCamera(self.sim, height=height, width=width)
             camera.set_pose(distance=2.2, lookat=[-0.2, .5, 2.], azimuth=70, elevation=-35)
             img = camera.render()
             return img

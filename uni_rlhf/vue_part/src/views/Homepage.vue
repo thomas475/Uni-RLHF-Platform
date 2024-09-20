@@ -69,7 +69,7 @@
                                 </div>
                             </div>
                             <div class="cardEnv">
-                                <p>{{ task.env }}</p>
+                                <p>{{ task.env }} ⋅ {{task.feedback_type}}</p>
                             </div>
                             <div class="cardNumber">
                                 <div>{{ task.completed }} / {{ task.total }}</div>
@@ -125,7 +125,7 @@
                                 </div>
                             </div>
                             <div class="cardEnv">
-                                <p>{{ task.env }}</p>
+                                <p>{{ task.env }} ⋅ {{task.feedback_type}}</p>
                             </div>
                             <div class="cardNumber">
                                 <div>{{ task.completed }} / {{ task.total }}</div>
@@ -481,7 +481,7 @@ export default {
                 ],
                 "query_num": {
                     "type": "integer",
-                    "default": 20,
+                    "default": 100,
                     "minimum": 1,
                     "maximum": 500
                 },
@@ -495,13 +495,13 @@ export default {
                     "type": "integer",
                     "default": 500,
                     "minimum": 84,
-                    "maximum": 500
+                    "maximum": 1000
                 },
                 "video_height": {
                     "type": "integer",
                     "default": 500,
                     "minimum": 84,
-                    "maximum": 500
+                    "maximum": 1000
                 },
                 "fps": {
                     "type": "integer",
@@ -545,8 +545,12 @@ export default {
         axios.post(this.$store.state.baseUrl + '/projects/' + this.$store.state.username)
             .then((response) => {
                 // console.log(response.data)
-                this.currentTask = this.transformTasks(response.data.currentprojects)
-                this.taskPool = this.transformTasks(response.data.projects)
+                this.currentTask = this.transformTasks(response.data.currentprojects).sort((a, b) => {
+                    return a.title.localeCompare(b.title);
+                });
+                this.taskPool = this.transformTasks(response.data.projects).sort((a, b) => {
+                    return a.title.localeCompare(b.title);
+                });
                 console.log("current", this.currentTask)
                 if (this.currentTask == undefined || this.currentTask == null || this.currentTask.length <= 0) {
                     this.empty1 = true
@@ -585,7 +589,8 @@ export default {
                     status: task.status,
                     skipped: task.skip_num,
                     date: new Date(task.create_time).toLocaleString(),
-                    avatar: avatars
+                    avatar: avatars,
+                    feedback_type: task.feedback_type
                 };
             });
         },
@@ -740,7 +745,9 @@ export default {
         createTask() {
             console.log(this.dueTime)
             console.log(this.isValidInvisibleQuestion)
-            if (this.$refs.createForm.validate() && this.isValidInvisibleQuestion) {
+            // Check if the feedback_type requires questions
+            const requiresQuestions = ["comparative", "attribute", "evaluative"].includes(this.FeedbackType);
+            if (this.$refs.createForm.validate() && (!requiresQuestions || this.isValidInvisibleQuestion)) {
                 let Tag = `${this.Tag.join(',')}`
                 let ques = {};
                 this.Question.forEach((question, index) => {
