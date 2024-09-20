@@ -263,7 +263,9 @@ If you run the application remotely, you can access the interface through either
 #### Port Forwarding
 
 Open the terminal on your local machine and enter the following (adjust `[user]` and `[server-ip]` accordingly):
+    ```
     ssh -L 8502:localhost:8502 -L 8503:localhost:8503 [user]@[server-ip]
+    ```
     
 Then you can access the interface at `http://localhost:8503`.
 
